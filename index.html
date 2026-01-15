@@ -542,7 +542,7 @@
                     <div>
                         <strong style="display: block; margin-bottom: 10px; font-size: 1.2em;">💳 Payment Method: Venmo</strong>
                         <p style="margin: 5px 0; color: #856404;">
-                            <strong>Venmo:</strong> @robertdanaher
+                            <strong>Venmo:</strong> <a href="https://venmo.com/u/robertdanaher" target="_blank" style="color: #2a9d8f; text-decoration: underline;">@robertdanaher</a>
                         </p>
                         <p style="margin: 5px 0 0 0; color: #856404; font-size: 0.95em;">
                             <em>After submitting your order, please send payment via Venmo.</em>
@@ -550,10 +550,17 @@
                     </div>
                     <div style="text-align: center;">
                         <p style="margin: 0 0 10px 0; color: #856404; font-size: 1em; font-weight: bold;">
-                            👇 Scan to Pay Instantly 👇
+                            👇 Scan or Click to Pay 👇
                         </p>
-                        <img src="venmo.jpg" alt="Venmo QR Code - @robertdanaher" 
-                             style="max-width: 220px; width: 100%; height: auto; border-radius: 15px; border: 4px solid #2a9d8f; box-shadow: 0 6px 20px rgba(0,0,0,0.2);">
+                        <a href="https://venmo.com/u/robertdanaher" target="_blank" style="display: inline-block; transition: transform 0.3s ease;">
+                            <img src="venmo.jpg" alt="Venmo QR Code - @robertdanaher" 
+                                 style="max-width: 220px; width: 100%; height: auto; border-radius: 15px; border: 4px solid #2a9d8f; box-shadow: 0 6px 20px rgba(0,0,0,0.2); cursor: pointer; transition: transform 0.3s ease, box-shadow 0.3s ease;"
+                                 onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 8px 25px rgba(0,0,0,0.3)';"
+                                 onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 6px 20px rgba(0,0,0,0.2)';">
+                        </a>
+                        <p style="margin: 10px 0 0 0; color: #2a9d8f; font-size: 0.9em; font-weight: bold;">
+                            💡 Tap image to open Venmo app
+                        </p>
                     </div>
                 </div>
             </div>
@@ -581,8 +588,8 @@
                     <input type="text" id="venmo" name="venmo" placeholder="@yourvenmo" required>
                 </div>
 
-                <div class="form-group">
-                    <label for="address">Shipping Address *</label>
+                <div class="form-group" id="addressField">
+                    <label for="address" id="addressLabel">Shipping Address *</label>
                     <textarea id="address" name="address" rows="3" required></textarea>
                 </div>
 
@@ -711,6 +718,22 @@
             document.querySelectorAll('.shipping-option').forEach(opt => opt.classList.remove('selected'));
             document.getElementById(method).closest('.shipping-option').classList.add('selected');
             document.getElementById(method).checked = true;
+            
+            // Handle address field based on shipping method
+            const addressField = document.getElementById('address');
+            const addressLabel = document.getElementById('addressLabel');
+            
+            if (method === 'pickup') {
+                // Make address optional for pickup
+                addressField.removeAttribute('required');
+                addressLabel.textContent = 'Pickup Location Notes (Optional)';
+                addressField.placeholder = 'Any special instructions for pickup...';
+            } else {
+                // Make address required for shipping
+                addressField.setAttribute('required', 'required');
+                addressLabel.textContent = 'Shipping Address *';
+                addressField.placeholder = '';
+            }
             
             // Show/hide gift message
             if (method === 'gift') {
@@ -853,7 +876,10 @@
                 // 1. Save to Firebase
                 await saveToFirebase(formData);
                 
-                // 2. Send email notification via FormSubmit
+                // 2. Save to Google Sheets
+                await saveToGoogleSheets(formData);
+                
+                // 3. Send email notification via FormSubmit
                 await sendViaFormSubmit(formData);
                 
                 // Show success message
@@ -921,6 +947,56 @@
             }
         }
 
+        // Save order to Google Sheets
+        async function saveToGoogleSheets(data) {
+            const GOOGLE_SHEETS_URL = 'YOUR_GOOGLE_APPS_SCRIPT_URL_HERE';
+            
+            if (GOOGLE_SHEETS_URL === 'YOUR_GOOGLE_APPS_SCRIPT_URL_HERE') {
+                console.log('Google Sheets not configured yet');
+                return;
+            }
+            
+            try {
+                // Format order details for spreadsheet
+                let orderItems = '';
+                data.order.forEach(item => {
+                    orderItems += `${item.product} (Qty: ${item.quantity}) - $${item.subtotal.toFixed(2)}; `;
+                });
+                
+                const sheetData = {
+                    timestamp: data.timestamp,
+                    orderNumber: data.orderNumber,
+                    customerName: data.name,
+                    email: data.email,
+                    phone: data.phone,
+                    venmo: data.venmo,
+                    address: data.address || 'Pickup',
+                    orderDetails: orderItems,
+                    subscriptionType: data.subscription || 'one-time',
+                    subtotal: data.subtotal,
+                    discount: data.subscriptionDiscount ? (data.subtotal * data.subscriptionDiscount).toFixed(2) : '0.00',
+                    shipping: (data.total - data.subtotal).toFixed(2),
+                    total: data.total.toFixed(2),
+                    shippingMethod: data.shippingMethod || 'pickup',
+                    notes: data.notes || ''
+                };
+                
+                const response = await fetch(GOOGLE_SHEETS_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(sheetData)
+                });
+                
+                console.log('Sent to Google Sheets');
+                return response;
+            } catch (error) {
+                console.error('Google Sheets error:', error);
+            }
+        }
+
         // Send via FormSubmit
         async function sendViaFormSubmit(data) {
             const FORMSUBMIT_EMAIL = 'robertldanaher@gmail.com';
@@ -945,6 +1021,10 @@
             };
             
             const formData = new FormData();
+            
+            // Create custom thank you message
+            const subscriptionType = subscriptionLabels[data.subscription] || 'One-Time Purchase';
+            const isSubscription = data.subscription !== 'one-time';
             formData.append('_subject', `New Order #${data.orderNumber} from ${data.name}`);
             formData.append('Order Number', data.orderNumber);
             formData.append('Order Type', subscriptionLabels[data.subscription] || 'One-Time Purchase');

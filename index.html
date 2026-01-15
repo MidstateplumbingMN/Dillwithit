@@ -426,6 +426,16 @@
             .contact-form {
                 padding: 0;
             }
+
+            /* Stack payment info on mobile */
+            .payment-info > div {
+                grid-template-columns: 1fr !important;
+                text-align: center;
+            }
+
+            .payment-info img {
+                margin: 15px auto 0 auto;
+            }
         }
     </style>
 </head>
@@ -538,8 +548,25 @@
             </div>
 
             <div class="payment-info">
-                <strong>💳 Payment Method:</strong> Venmo (@robertdanaher)<br>
-                <em>After submitting your order, please send payment to @robertdanaher on Venmo.</em>
+                <div style="display: grid; grid-template-columns: 1fr auto; gap: 20px; align-items: center;">
+                    <div>
+                        <strong style="display: block; margin-bottom: 10px; font-size: 1.1em;">💳 Payment Method: Venmo</strong>
+                        <p style="margin: 5px 0; color: #856404;">
+                            <strong>Venmo:</strong> @robertdanaher
+                        </p>
+                        <p style="margin: 5px 0 0 0; color: #856404; font-size: 0.9em;">
+                            <em>After submitting your order, please send payment via Venmo.</em>
+                        </p>
+                        <p style="margin: 10px 0 0 0; color: #856404; font-size: 0.9em;">
+                            👉 Scan the QR code to pay instantly!
+                        </p>
+                    </div>
+                    <div style="text-align: center;">
+                        <img src="venmo.jpg" alt="Venmo QR Code - @robertdanaher" 
+                             style="max-width: 150px; width: 100%; height: auto; border-radius: 10px; border: 3px solid #2a9d8f; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                        <p style="margin-top: 8px; font-size: 0.85em; color: #666; font-weight: bold;">Scan to Pay</p>
+                    </div>
+                </div>
             </div>
 
             <form class="contact-form" id="orderForm">
@@ -593,16 +620,13 @@
         ];
 
         // Firebase Configuration
-      const firebaseConfig = {
-    apiKey: "AIzaSyAATjZ98WQ8WhJ0cWURQEDbstDupE88VJA",
-    authDomain: "dillwithit.firebaseapp.com",
-    projectId: "dillwithit",
-    storageBucket: "dillwithit.firebasestorage.app",
-    messagingSenderId: "937284207121",
-    appId: "1:937284207121:web:861cbe32bffaf8b162a7b0",
-    measurementId: "G-6GLFCNWJY2"
-  };
-
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT_ID.appspot.com",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID"
         };
 
         // Initialize Firebase
@@ -910,9 +934,9 @@
 
         // Send via FormSubmit
         async function sendViaFormSubmit(data) {
-            const FORMSUBMIT_EMAIL = 'robertldanaher@gmail.com';
+            const FORMSUBMIT_EMAIL = 'YOUR_EMAIL@example.com';
             
-            if (FORMSUBMIT_EMAIL === 'robertldanaher@gmail.com') {
+            if (FORMSUBMIT_EMAIL === 'YOUR_EMAIL@example.com') {
                 console.log('FormSubmit not configured yet');
                 return;
             }

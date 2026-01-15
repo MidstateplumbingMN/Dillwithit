@@ -6,6 +6,10 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Bob's Seasonings - Reorder</title>
+    
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <style>
         * {
             margin: 0;
@@ -360,6 +364,16 @@
             color: #856404;
         }
 
+        .subscription-radio:has(input:checked) {
+            border-color: #2a9d8f !important;
+            background: #f0fdf4 !important;
+        }
+
+        .subscription-radio:hover {
+            border-color: #2a9d8f;
+            background: #fafafa;
+        }
+
         .success-message {
             background: #d4edda;
             color: #155724;
@@ -476,6 +490,53 @@
                 </div>
             </div>
 
+            <div class="subscription-section" style="background: linear-gradient(135deg, #fefae0 0%, #d4e09b 100%); padding: 25px; border-radius: 15px; margin-bottom: 20px; border: 2px solid #2a9d8f;">
+                <h3 style="color: #2a9d8f; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                    <span>🔄</span> Subscription Option
+                </h3>
+                <p style="color: #666; margin-bottom: 15px;">Get your favorite seasoning delivered automatically and save!</p>
+                
+                <div class="subscription-options" style="display: grid; gap: 15px;">
+                    <label class="subscription-radio" style="display: flex; align-items: center; padding: 15px; background: white; border-radius: 10px; cursor: pointer; border: 2px solid #ddd;">
+                        <input type="radio" name="subscription" value="one-time" checked style="margin-right: 12px; width: 20px; height: 20px; cursor: pointer;">
+                        <div>
+                            <strong style="color: #333;">One-Time Purchase</strong>
+                            <p style="color: #666; margin: 5px 0 0 0; font-size: 0.9em;">Standard order - no recurring charges</p>
+                        </div>
+                    </label>
+
+                    <label class="subscription-radio" style="display: flex; align-items: center; padding: 15px; background: white; border-radius: 10px; cursor: pointer; border: 2px solid #ddd;">
+                        <input type="radio" name="subscription" value="monthly" style="margin-right: 12px; width: 20px; height: 20px; cursor: pointer;">
+                        <div>
+                            <strong style="color: #2a9d8f;">Monthly Subscription - Save 10%</strong>
+                            <p style="color: #666; margin: 5px 0 0 0; font-size: 0.9em;">Delivered every month • Cancel anytime • Only $5.40/bottle</p>
+                        </div>
+                    </label>
+
+                    <label class="subscription-radio" style="display: flex; align-items: center; padding: 15px; background: white; border-radius: 10px; cursor: pointer; border: 2px solid #ddd;">
+                        <input type="radio" name="subscription" value="bimonthly" style="margin-right: 12px; width: 20px; height: 20px; cursor: pointer;">
+                        <div>
+                            <strong style="color: #2a9d8f;">Every 2 Months - Save 5%</strong>
+                            <p style="color: #666; margin: 5px 0 0 0; font-size: 0.9em;">Delivered every 2 months • Cancel anytime • Only $5.70/bottle</p>
+                        </div>
+                    </label>
+
+                    <label class="subscription-radio" style="display: flex; align-items: center; padding: 15px; background: white; border-radius: 10px; cursor: pointer; border: 2px solid #ddd;">
+                        <input type="radio" name="subscription" value="quarterly" style="margin-right: 12px; width: 20px; height: 20px; cursor: pointer;">
+                        <div>
+                            <strong style="color: #2a9d8f;">Quarterly (3 Months) - Save 5%</strong>
+                            <p style="color: #666; margin: 5px 0 0 0; font-size: 0.9em;">Delivered every 3 months • Cancel anytime • Only $5.70/bottle</p>
+                        </div>
+                    </label>
+                </div>
+
+                <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-top: 15px; border-left: 4px solid #ffc107;">
+                    <p style="color: #856404; margin: 0; font-size: 0.9em;">
+                        <strong>How it works:</strong> We'll contact you before each delivery. You can skip, pause, or cancel anytime!
+                    </p>
+                </div>
+            </div>
+
             <div class="payment-info">
                 <strong>💳 Payment Method:</strong> Venmo (@robertdanaher)<br>
                 <em>After submitting your order, please send payment to @robertdanaher on Venmo.</em>
@@ -531,10 +592,46 @@
             { id: 1, name: '"Dill with it" Dill Pickle Chicken Dry Rub (3 oz)', price: 6.00, weight: 4 }
         ];
 
+        // Firebase Configuration
+      const firebaseConfig = {
+    apiKey: "AIzaSyAATjZ98WQ8WhJ0cWURQEDbstDupE88VJA",
+    authDomain: "dillwithit.firebaseapp.com",
+    projectId: "dillwithit",
+    storageBucket: "dillwithit.firebasestorage.app",
+    messagingSenderId: "937284207121",
+    appId: "1:937284207121:web:861cbe32bffaf8b162a7b0",
+    measurementId: "G-6GLFCNWJY2"
+  };
+
+        };
+
+        // Initialize Firebase
+        let db = null;
+        try {
+            if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
+                firebase.initializeApp(firebaseConfig);
+                db = firebase.firestore();
+                console.log('Firebase initialized successfully');
+            } else {
+                console.log('Firebase not configured yet');
+            }
+        } catch (error) {
+            console.error('Firebase initialization error:', error);
+        }
+
         // Cart and shipping state
         const cart = {};
         let selectedShipping = 'pickup';
         let shippingCost = 0;
+        let selectedSubscription = 'one-time';
+
+        // Subscription discounts
+        const SUBSCRIPTION_DISCOUNTS = {
+            'one-time': 0,
+            'monthly': 0.10,      // 10% off
+            'bimonthly': 0.05,    // 5% off
+            'quarterly': 0.05     // 5% off
+        };
 
         // Shipping rates based on weight (4 oz per bottle)
         const SHIPPING_RATES = {
@@ -641,14 +738,30 @@
                 `;
             });
             
+            // Apply subscription discount
+            const discount = subtotal * SUBSCRIPTION_DISCOUNTS[selectedSubscription];
+            const discountedSubtotal = subtotal - discount;
+            
             shippingCost = calculateShipping();
-            const total = subtotal + shippingCost;
+            const total = discountedSubtotal + shippingCost;
             
             summaryHTML += `
                 <div class="order-item">
                     <span>Subtotal</span>
                     <span>$${subtotal.toFixed(2)}</span>
-                </div>
+                </div>`;
+            
+            // Show discount if applicable
+            if (discount > 0) {
+                const discountPercent = (SUBSCRIPTION_DISCOUNTS[selectedSubscription] * 100).toFixed(0);
+                summaryHTML += `
+                <div class="order-item" style="color: #2a9d8f;">
+                    <span>🔄 Subscription Discount (${discountPercent}%)</span>
+                    <span>-$${discount.toFixed(2)}</span>
+                </div>`;
+            }
+            
+            summaryHTML += `
                 <div class="order-item">
                     <span>Shipping</span>
                     <span>$${shippingCost.toFixed(2)}</span>
@@ -694,6 +807,8 @@
                 shippingMethod: selectedShipping,
                 shippingCost: shippingCost,
                 giftMessage: selectedShipping === 'gift' ? document.getElementById('giftMessage').value : '',
+                subscription: selectedSubscription,
+                subscriptionDiscount: SUBSCRIPTION_DISCOUNTS[selectedSubscription],
                 order: []
             };
             
@@ -720,9 +835,13 @@
             formData.subtotal = subtotal;
             formData.total = subtotal + shippingCost;
             
-            // Send to Google Sheets
+            // Submit order
             try {
-                await sendToGoogleSheets(formData);
+                // 1. Save to Firebase
+                await saveToFirebase(formData);
+                
+                // 2. Send email notification via FormSubmit
+                await sendViaFormSubmit(formData);
                 
                 // Show success message
                 document.getElementById('orderNumber').textContent = `Order #${formData.orderNumber}`;
@@ -745,28 +864,118 @@
             }
         });
 
-        // Send data to Google Sheets
-        async function sendToGoogleSheets(data) {
-            // This needs to be connected to a Google Apps Script Web App
-            // Instructions below for setting this up
-            const GOOGLE_SCRIPT_URL = 'YOUR_GOOGLE_APPS_SCRIPT_URL_HERE';
+        // Save order to Firebase
+        async function saveToFirebase(data) {
+            if (!db) {
+                console.log('Firebase not configured - skipping database save');
+                return;
+            }
             
-            const response = await fetch(GOOGLE_SCRIPT_URL, {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(data)
+            try {
+                // Add order to Firestore
+                const docRef = await db.collection('orders').add({
+                    orderNumber: data.orderNumber,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    customer: {
+                        name: data.name,
+                        email: data.email,
+                        phone: data.phone,
+                        venmo: data.venmo,
+                        address: data.address
+                    },
+                    order: data.order,
+                    pricing: {
+                        subtotal: data.subtotal,
+                        discount: data.subscriptionDiscount ? data.subtotal * data.subscriptionDiscount : 0,
+                        shipping: data.total - data.subtotal,
+                        total: data.total
+                    },
+                    subscription: {
+                        type: data.subscription || 'one-time',
+                        discount: data.subscriptionDiscount || 0
+                    },
+                    shippingOption: data.shippingOption || 'pickup',
+                    giftMessage: data.giftMessage || '',
+                    notes: data.notes || '',
+                    status: 'pending'
+                });
+                
+                console.log('Order saved to Firebase with ID:', docRef.id);
+                return docRef;
+            } catch (error) {
+                console.error('Firebase save error:', error);
+                throw error;
+            }
+        }
+
+        // Send via FormSubmit
+        async function sendViaFormSubmit(data) {
+            const FORMSUBMIT_EMAIL = 'YOUR_EMAIL@example.com';
+            
+            if (FORMSUBMIT_EMAIL === 'YOUR_EMAIL@example.com') {
+                console.log('FormSubmit not configured yet');
+                return;
+            }
+            
+            // Format order details
+            let orderDetails = 'ORDER DETAILS:\n';
+            data.order.forEach(item => {
+                orderDetails += `${item.product} x ${item.quantity} @ $${item.price.toFixed(2)} = $${item.subtotal.toFixed(2)}\n`;
             });
             
-            // Send confirmation email (this would also be handled by the Google Apps Script)
-            return response;
+            // Format subscription type
+            const subscriptionLabels = {
+                'one-time': 'One-Time Purchase',
+                'monthly': 'Monthly Subscription (Save 10%)',
+                'bimonthly': 'Every 2 Months (Save 5%)',
+                'quarterly': 'Quarterly - Every 3 Months (Save 5%)'
+            };
+            
+            const formData = new FormData();
+            formData.append('_subject', `New Order #${data.orderNumber} from ${data.name}`);
+            formData.append('Order Number', data.orderNumber);
+            formData.append('Order Type', subscriptionLabels[data.subscription] || 'One-Time Purchase');
+            formData.append('Customer Name', data.name);
+            formData.append('Email', data.email);
+            formData.append('Phone', data.phone);
+            formData.append('Venmo', data.venmo);
+            formData.append('Address', data.address);
+            formData.append('Order Details', orderDetails);
+            formData.append('Subtotal', `$${data.subtotal.toFixed(2)}`);
+            
+            if (data.subscriptionDiscount > 0) {
+                const discount = data.subtotal * data.subscriptionDiscount;
+                formData.append('Subscription Discount', `-$${discount.toFixed(2)}`);
+            }
+            
+            formData.append('Shipping', `$${(data.total - data.subtotal).toFixed(2)}`);
+            formData.append('Total', `$${data.total.toFixed(2)}`);
+            formData.append('Notes', data.notes || 'None');
+            formData.append('_captcha', 'false');
+            
+            try {
+                const response = await fetch(`https://formsubmit.co/${FORMSUBMIT_EMAIL}`, {
+                    method: 'POST',
+                    body: formData
+                });
+                console.log('Sent via FormSubmit');
+                return response;
+            } catch (error) {
+                console.error('FormSubmit error:', error);
+            }
         }
 
         // Initialize on page load
         initProducts();
         selectShipping('pickup');
+        
+        // Add subscription radio button listeners
+        document.querySelectorAll('input[name="subscription"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                selectedSubscription = this.value;
+                updateOrderSummary();
+            });
+        });
     </script>
 </body>
 </html>
